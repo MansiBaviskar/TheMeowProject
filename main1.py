@@ -73,3 +73,59 @@ CAT_SVG = """
   <line x1="148" y1="124" x2="190" y2="130" stroke="#7A4A2A" stroke-width="2" stroke-linecap="round"/>
 </svg>
 """
+
+# The artwork is drawn on a 240 x 260 canvas. We keep that shape when we
+# resize so the cat never looks squished or stretched.
+SVG_W, SVG_H = 240, 260
+CAT_HEIGHT = round(CAT_WIDTH * SVG_H / SVG_W)
+
+
+class DeskCat(QWidget):
+    def __init__(self):
+        super().__init__()
+
+        # Frameless + always-on-top + no taskbar button.
+        self.setWindowFlags(
+            Qt.FramelessWindowHint
+            | Qt.WindowStaysOnTopHint
+            | Qt.Tool
+        )
+        # See-through background, so only the cat shows.
+        self.setAttribute(Qt.WA_TranslucentBackground)
+
+        # Load the baked-in artwork and size it from your CAT_WIDTH setting.
+        self.cat = QSvgWidget(self)
+        self.cat.load(QByteArray(CAT_SVG.encode("utf-8")))
+        self.cat.setGeometry(0, 0, CAT_WIDTH, CAT_HEIGHT)
+        self.resize(CAT_WIDTH, CAT_HEIGHT)
+
+        self._drag_offset = None  # remembers your grab point while dragging
+
+    # ---- Left-click and drag to move the cat ----
+    def mousePressEvent(self, event):
+        if event.button() == Qt.LeftButton:
+            self._drag_offset = (
+                event.globalPosition().toPoint() - self.frameGeometry().topLeft()
+            )
+
+    def mouseMoveEvent(self, event):
+        if self._drag_offset is not None and event.buttons() & Qt.LeftButton:
+            self.move(event.globalPosition().toPoint() - self._drag_offset)
+
+    def mouseReleaseEvent(self, event):
+        self._drag_offset = None
+
+    # ---- Right-click the cat to quit (your only "close button"!) ----
+    def contextMenuEvent(self, event):
+        menu = QMenu(self)
+        quit_action = menu.addAction("Quit DeskCat")
+        chosen = menu.exec(event.globalPos())
+        if chosen == quit_action:
+            QApplication.quit()
+
+
+if __name__ == "__main__":
+    app = QApplication(sys.argv)
+    cat = DeskCat()
+    cat.show()
+    sys.exit(app.exec())
